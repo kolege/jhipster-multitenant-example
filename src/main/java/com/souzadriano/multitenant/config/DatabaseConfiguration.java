@@ -48,17 +48,20 @@ import liquibase.integration.spring.SpringLiquibase;
 @EnableJpaAuditing(auditorAwareRef = "springSecurityAuditorAware")
 @EnableTransactionManagement
 public class DatabaseConfiguration {
-	
-	@Autowired MultiTenantConnectionProviderImpl dsProvider;
 
-    @Autowired CurrentTenantIdentifierResolverImpl tenantResolver;
+    @Autowired
+    MultiTenantConnectionProviderImpl dsProvider;
+
+    @Autowired
+    CurrentTenantIdentifierResolverImpl tenantResolver;
 
     private final Logger log = LoggerFactory.getLogger(DatabaseConfiguration.class);
 
     private final Environment env;
-    
-    @Autowired ApplicationContext context;
-    
+
+    @Autowired
+    ApplicationContext context;
+
     @Autowired(required = false)
     private MetricRegistry metricRegistry;
 
@@ -75,12 +78,12 @@ public class DatabaseConfiguration {
     @Bean(initMethod = "start", destroyMethod = "stop")
     @Profile(JHipsterConstants.SPRING_PROFILE_DEVELOPMENT)
     public Server h2TCPServer() throws SQLException {
-        return Server.createTcpServer("-tcp","-tcpAllowOthers");
+        return Server.createTcpServer("-tcp", "-tcpAllowOthers");
     }
 
     @Bean
     public SpringLiquibase liquibase(@Qualifier("taskExecutor") TaskExecutor taskExecutor,
-            DataSource dataSource, LiquibaseProperties liquibaseProperties) {
+                                     DataSource dataSource, LiquibaseProperties liquibaseProperties) {
 
         // Use liquibase.integration.spring.SpringLiquibase if you don't want Liquibase to start asynchronously
         SpringLiquibase liquibase = new AsyncSpringLiquibase(taskExecutor, env);
@@ -90,14 +93,14 @@ public class DatabaseConfiguration {
         liquibase.setDefaultSchema(liquibaseProperties.getDefaultSchema());
         liquibase.setDropFirst(liquibaseProperties.isDropFirst());
         if (env.acceptsProfiles(JHipsterConstants.SPRING_PROFILE_NO_LIQUIBASE)) {
-        	liquibase.setShouldRun(false);
+            liquibase.setShouldRun(false);
         } else {
             liquibase.setShouldRun(liquibaseProperties.isEnabled());
             log.debug("Configuring Liquibase");
         }
         return liquibase;
     }
-    
+
     @Bean
     public JpaVendorAdapter jpaVendorAdapter() {
         HibernateJpaVendorAdapter hibernateJpaVendorAdapter = new HibernateJpaVendorAdapter();
@@ -111,15 +114,15 @@ public class DatabaseConfiguration {
         return hibernateJpaVendorAdapter;
     }
 
-    
-    @Bean(destroyMethod = "shutdown")
+
+    @Bean(destroyMethod = "close")
     public DataSource dataSource() {
         log.debug("Configuring Datasource");
         RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "spring.datasource.");
         if (propertyResolver.getProperty("url") == null && propertyResolver.getProperty("databaseName") == null) {
             log.error("Your database connection pool configuration is incorrect! The application" +
                     "cannot start. Please check your Spring profile, current profiles are: {}",
-                    Arrays.toString(env.getActiveProfiles()));
+                Arrays.toString(env.getActiveProfiles()));
 
             throw new ApplicationContextException("Database connection pool is not configured correctly");
         }
@@ -139,16 +142,19 @@ public class DatabaseConfiguration {
         }
         return new HikariDataSource(config);
     }
-    
+
     /**
      * Configures the Hibernate JPA service with multi-tenant support enabled.
+     *
      * @param builder
      * @return
      */
-    @PersistenceContext @Primary @Bean
+    @PersistenceContext
+    @Primary
+    @Bean
     public LocalContainerEntityManagerFactoryBean entityManagerFactory(EntityManagerFactoryBuilder builder) {
-    	RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "spring.jpa.properties");
-    	
+        RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "spring.jpa.properties");
+
         Map<String, Object> props = new HashMap<>();
         props.put("hibernate.multiTenancy", MultiTenancyStrategy.DATABASE.name());
         props.put("hibernate.multi_tenant_connection_provider", dsProvider);
@@ -159,9 +165,9 @@ public class DatabaseConfiguration {
         props.put("hibernate.generate_statistics", propertyResolver.getProperty("hibernate.generate_statistics"));
 
         LocalContainerEntityManagerFactoryBean result = builder.dataSource(dataSource())
-                .persistenceUnit("default")
-                .properties(props)
-                .packages("com.souzadriano").build();
+            .persistenceUnit("default")
+            .properties(props)
+            .packages("com.souzadriano").build();
         result.setJpaVendorAdapter(jpaVendorAdapter());
         return result;
     }
